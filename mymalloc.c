@@ -19,7 +19,7 @@ struct node {
 
 struct node* first_header = (struct node*)heap.bytes;
 
-static int not_initialized = 1;
+static int not_initialized = 2;
 
 static void leak_detection() {
 
