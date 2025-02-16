@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #define MEMLENGTH 4096
 
 // 'static' prevent client code from accessing storage directly.
@@ -26,19 +28,21 @@ static void leak_detection() {
 static void initialize() {
 	atexit(leak_detection);
 	
-	memset(first_header + 8, 0xAA, MEMLENGTH - 8);
 	first_header->payload_size = MEMLENGTH;
 	first_header->allocated = 0;
+	memset(first_header + 8, 0xAA, MEMLENGTH - 8);
+	
 	not_initialized = 0;
 }
 
-//TODO figure out why using size_t data type.
 void * mymalloc(size_t size, char *file, int line) {
 	if (not_initialized) {
 		initialize();
 	}
 
-	//TODO other error detections.
+	if (size == 0) {
+		return NULL;
+	}
 
 	size_t real_size = (size + 7) & ~7;
 
@@ -80,7 +84,7 @@ void * mymalloc(size_t size, char *file, int line) {
 
 			curr_header->allocated = 1;
 
-			return (void *) (curr_header + 8)
+			return (void *) (curr_header + 8);
 		}
 	}
 
