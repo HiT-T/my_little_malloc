@@ -1,4 +1,4 @@
-#include <stddef.h>
+#include <stdio.h>
 
 #define MEMLENGTH 4096
 
@@ -21,14 +21,26 @@ struct node *first_header = (struct node *) heap.bytes;
 
 static int not_initialized = 1;
 
-static void leak_detection() {
-	//TODO print out the number of leaked (allocated but unfree) chunks in heap.
+static void leak_detector() {
+	size_t leaked_size = 0;
+	int leaked_chunks = 0;
+
+	for (struct node *curr_header = first_header; curr_header < first_header + MEMLENGTH;
+		curr_header += 8 + curr_header->payload_size)
+   {
+	if (curr_header->allocated) {
+		leaked_chunks += 1;
+		leaked_size += curr_header->payload_size;
+	}
+   }
+
+   fprintf(stderr, "mymalloc: %zu bytes leaked in %d objects.", leaked_size, leaked_chunks);
 }
 
 static void initialize() {
-	atexit(leak_detection);
+	atexit(leak_detector);
 	
-	first_header->payload_size = MEMLENGTH;
+	first_header->payload_size = MEMLENGTH - 8;
 	first_header->allocated = 0;
 	memset(first_header + 8, 0xAA, MEMLENGTH - 8);
 	
@@ -88,7 +100,7 @@ void * mymalloc(size_t size, char *file, int line) {
 		}
 	}
 
-	printf("Unable to allocate %d bytes (%s %d)", size, file, line);
+	fprintf(stderr, "malloc: Unable to allocate %d bytes (%s:%d)\n", size, file, line);
 	exit(2);
 }
 
