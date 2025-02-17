@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #define MEMLENGTH 4096
 
@@ -17,7 +18,7 @@ struct node {
 	int allocated;
 };
 
-struct node *first_header = (struct node *) heap.bytes;
+struct node *first_header = (struct node *)heap.bytes;
 
 static int not_initialized = 1;
 
@@ -25,8 +26,9 @@ static void leak_detector() {
 	size_t leaked_size = 0;
 	int leaked_chunks = 0;
 
-	for (struct node *curr_header = first_header; curr_header < first_header + MEMLENGTH;
-		curr_header += 8 + curr_header->payload_size)
+	for (struct node *curr_header = first_header;
+		 (char *)curr_header < heap.bytes + MEMLENGTH;
+		curr_header = (struct node *)((char *)curr_header + 8 + curr_header->payload_size))
    {
 	if (curr_header->allocated) {
 		leaked_chunks += 1;
@@ -34,7 +36,7 @@ static void leak_detector() {
 	}
    }
 
-   fprintf(stderr, "mymalloc: %zu bytes leaked in %d objects.", leaked_size, leaked_chunks);
+   fprintf(stderr, "mymalloc: %zu bytes leaked in %d objects.\n", leaked_size, leaked_chunks);
 }
 
 static void initialize() {
@@ -42,7 +44,7 @@ static void initialize() {
 	
 	first_header->payload_size = MEMLENGTH - 8;
 	first_header->allocated = 0;
-	memset(first_header + 8, 0xAA, MEMLENGTH - 8);
+	memset((char *)first_header + 8, 0xAA, MEMLENGTH - 8);
 	
 	not_initialized = 0;
 }
@@ -58,14 +60,15 @@ void * mymalloc(size_t size, char *file, int line) {
 
 	size_t real_size = (size + 7) & ~7;
 
-	for (struct node *curr_header = first_header; curr_header < first_header + MEMLENGTH;
-		 curr_header += 8 + curr_header->payload_size)
+	for (struct node *curr_header = first_header;
+		 (char *)curr_header < heap.bytes + MEMLENGTH;
+		 curr_header = (struct node *)((char *)curr_header + 8 + curr_header->payload_size))
 	{
 		int *curr_size = &(curr_header->payload_size);
 
 		if (*curr_size >= real_size) {
 			if (*curr_size >= real_size + 16) {
-				struct node *new_header = (struct node *) curr_header + 8 + real_size;
+				struct node *new_header = (struct node *)((char *)curr_header + 8 + real_size);
 				new_header->payload_size = *curr_size - real_size - 8;
 				new_header->allocated = 0;
 				*curr_size = real_size;
@@ -75,18 +78,19 @@ void * mymalloc(size_t size, char *file, int line) {
 
 			curr_header->allocated = 1;
 
-			return (void *) (curr_header + 8);
+			return (void *) ((char *)curr_header + 8);
 		} 
 		else if (*curr_size < real_size) {
-			for (struct node *next_header = curr_header + 8 + *curr_size; next_header < first_header + MEMLENGTH 
-				&& next_header->allocated == 0; next_header = next_header + 8 + (next_header->payload_size)) 
+			for (struct node *next_header = (struct node *)((char *)curr_header + 8 + *curr_size);
+			 (char *)next_header < heap.bytes + MEMLENGTH && next_header->allocated == 0;
+			  next_header = (struct node *)((char *)next_header + 8 + (next_header->payload_size))) 
 			{ *curr_size += 8 + (next_header->payload_size); }
 
-			memset(curr_header + 8, 0xAA, *curr_size);
+			memset((char *)curr_header + 8, 0xAA, *curr_size);
 			
 			if (*curr_size < real_size) { continue; }
 			else if (*curr_size >= real_size + 16) {
-				struct node *new_header = (struct node *) curr_header + 8 + real_size;
+				struct node *new_header = (struct node *)((char *)curr_header + 8 + real_size);
 				new_header->payload_size = *curr_size - real_size - 8;
 				new_header->allocated = 0;
 				*curr_size = real_size;
@@ -96,12 +100,12 @@ void * mymalloc(size_t size, char *file, int line) {
 
 			curr_header->allocated = 1;
 
-			return (void *) (curr_header + 8);
+			return (void *) ((char *)curr_header + 8);
 		}
 	}
 
-	fprintf(stderr, "malloc: Unable to allocate %d bytes (%s:%d)\n", size, file, line);
-	exit(2);
+	fprintf(stderr, "malloc: Unable to allocate %zu bytes (%s:%d)\n", size, file, line);
+	return NULL;
 }
 
 void   myfree(void *ptr, char *file, int line) {
