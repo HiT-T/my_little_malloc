@@ -1,7 +1,13 @@
-CFLAGS     = -std=c99 -Wall
+CC=gcc
+CFLAGS=-Wall -Wextra
 
-build: 
-	gcc $(CFLAGS) memgrind.c mymalloc.c -o memgrind && ./memgrind
-	gcc $(CFLAGS) memtest.c mymalloc.c -o memtest && ./memtest
+all: memgrind memtest
+
+memgrind: memgrind.c mymalloc.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+memtest: memtest.c mymalloc.c
+	$(CC) $(CFLAGS) -o $@ $^
+
 clean:
-	rm -rf memgrind memtest
+	rm -f memgrind memtest

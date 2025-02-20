@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 
 #define MEMLENGTH 4096
 
@@ -14,7 +16,7 @@ static union {
 } heap; 
 
 struct node {
-	int payload_size;
+	size_t payload_size;
 	int allocated;
 };
 
@@ -64,7 +66,7 @@ void * mymalloc(size_t size, char *file, int line) {
 		 (char *)curr_header < heap.bytes + MEMLENGTH;
 		 curr_header = (struct node *)((char *)curr_header + 8 + curr_header->payload_size))
 	{
-		int *curr_size = &(curr_header->payload_size);
+		size_t *curr_size = &(curr_header->payload_size); // Change to size_t*
 
 		if (*curr_size >= real_size) {
 			if (*curr_size >= real_size + 16) {
@@ -108,8 +110,52 @@ void * mymalloc(size_t size, char *file, int line) {
 	return NULL;
 }
 
-void   myfree(void *ptr, char *file, int line) {
-	if (not_initialized) {
-		initialize();
-	}
+void myfree(void *ptr, char *file, int line) {
+    if (not_initialized) {
+        initialize();
+    }
+
+    if (ptr == NULL) {
+        return; // Freeing NULL is allowed (no-op)
+    }
+
+    // Check if pointer is within the heap
+    if ((char *)ptr < heap.bytes || (char *)ptr >= heap.bytes + MEMLENGTH) {
+        fprintf(stderr, "free: Invalid pointer (%s:%d)\n", file, line);
+        exit(2);
+    }
+
+    // Get the header by moving back from the payload
+    struct node *header = (struct node *)((char *)ptr - 8);
+
+    // Check alignment and validity
+    if ((char *)header < heap.bytes || (char *)header + 8 + header->payload_size > heap.bytes + MEMLENGTH) {
+        fprintf(stderr, "free: Invalid pointer (%s:%d)\n", file, line);
+        exit(2);
+    }
+
+    if (!header->allocated) {
+        fprintf(stderr, "free: Double free detected (%s:%d)\n", file, line);
+        exit(2);
+    }
+
+    // Mark as free
+    header->allocated = 0;
+
+    // Coalesce with next chunk if free
+    struct node *next_header = (struct node *)((char *)header + 8 + header->payload_size);
+    if ((char *)next_header < heap.bytes + MEMLENGTH && !next_header->allocated) {
+        header->payload_size += 8 + next_header->payload_size;
+    }
+
+    // Coalesce with previous chunk if free
+    struct node *prev_header = first_header;
+    while ((char *)prev_header < (char *)header) {
+        struct node *current_next = (struct node *)((char *)prev_header + 8 + prev_header->payload_size);
+        if (current_next == header && !prev_header->allocated) {
+            prev_header->payload_size += 8 + header->payload_size;
+            header = prev_header; // Update header for further checks
+        }
+        prev_header = (struct node *)((char *)prev_header + 8 + prev_header->payload_size);
+    }
 }

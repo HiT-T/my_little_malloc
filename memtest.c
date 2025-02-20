@@ -39,6 +39,9 @@
  
  int main(int argc, char **argv)
  {
+    (void)argc;
+    (void)argv;
+
      char *obj[OBJECTS];
      int i, j, errors = 0;
      
