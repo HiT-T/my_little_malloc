@@ -1,6 +1,7 @@
 {
-    "makefile.configureOnOpen": true,
     "files.associations": {
-        "mymalloc.h": "c"
+        "stdlib.h": "c",
+        "mymalloc.h": "c",
+        "stdio.h": "c"
     }
 }
