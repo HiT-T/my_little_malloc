@@ -3,5 +3,6 @@
         "stdlib.h": "c",
         "mymalloc.h": "c",
         "stdio.h": "c"
-    }
+    },
+    "makefile.configureOnOpen": false
 }

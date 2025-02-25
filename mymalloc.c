@@ -17,7 +17,7 @@ static union {
 } heap; 
 
 struct node {
-	size_t payload_size;
+	int payload_size;
 	int allocated;
 };
 
@@ -26,7 +26,7 @@ struct node *first_header = (struct node *)heap.bytes;
 static int not_initialized = 1;
 
 static void leak_detector() {
-	size_t leaked_size = 0;
+	int leaked_size = 0;
 	int leaked_chunks = 0;
 
 	for (struct node *curr_header = first_header;
@@ -40,7 +40,7 @@ static void leak_detector() {
    }
 
    if (leaked_chunks > 0) {
-   	fprintf(stderr, "mymalloc: %zu bytes leaked in %d objects.\n", leaked_size, leaked_chunks);
+   	fprintf(stderr, "mymalloc: %d bytes leaked in %d objects.\n", leaked_size, leaked_chunks);
    }
 }
 
@@ -68,49 +68,52 @@ void * mymalloc(size_t size, char *file, int line) {
 		return NULL;
 	}
 
-	size_t real_size = (size + 7) & ~7;
+	// calculate the nearest size number which is the multiple of 8 (guarantee alignment).
+	int real_size = ((int)size + 7) & ~7;
 
 	for (struct node *curr_header = first_header;
 		 (char *)curr_header < heap.bytes + MEMLENGTH;
 		 curr_header = (struct node *)((char *)curr_header + HEADERSIZE + curr_header->payload_size))
 	{
-		size_t *curr_size = &(curr_header->payload_size); // Change to size_t*
+		if (!curr_header->allocated) {
+			int *curr_size = &(curr_header->payload_size);
 
-		if (*curr_size >= real_size) {
-			if (*curr_size >= real_size + 16) {
-				struct node *new_header = (struct node *)((char *)curr_header + HEADERSIZE + real_size);
-				new_header->payload_size = *curr_size - real_size - HEADERSIZE;
-				new_header->allocated = 0;
-				*curr_size = real_size;
-			} else {
-				// doesn't change payload_size cuz don't have space to allocate a new chunk.
-			}
+			if (*curr_size >= real_size) {
+				if (*curr_size >= real_size + HEADERSIZE + 8) {
+					struct node *new_header = (struct node *)((char *)curr_header + HEADERSIZE + real_size);
+					new_header->payload_size = (int)(*curr_size - real_size - HEADERSIZE);
+					new_header->allocated = 0;
+					*curr_size = real_size;
+				} else {
+					// doesn't change payload_size cuz don't have space to allocate a new chunk.
+				}
 
-			curr_header->allocated = 1;
+				curr_header->allocated = 1;
 
-			return (void *) ((char *)curr_header + HEADERSIZE);
-		} 
-		else if (*curr_size < real_size) {
-			for (struct node *next_header = (struct node *)((char *)curr_header + HEADERSIZE + *curr_size);
-			 (char *)next_header < heap.bytes + MEMLENGTH && !next_header->allocated;
-			  next_header = (struct node *)((char *)next_header + HEADERSIZE + (next_header->payload_size))) 
-			{ *curr_size += HEADERSIZE + (next_header->payload_size); }
+				return (void *) ((char *)curr_header + HEADERSIZE);
+			} 
+			else if (*curr_size < real_size) {
+				for (struct node *next_header = (struct node *)((char *)curr_header + HEADERSIZE + *curr_size);
+				 (char *)next_header < heap.bytes + MEMLENGTH && !next_header->allocated;
+				  next_header = (struct node *)((char *)next_header + HEADERSIZE + (next_header->payload_size))) 
+				{ *curr_size += HEADERSIZE + (next_header->payload_size); }
 
-			memset((char *)curr_header + HEADERSIZE, 0xAA, *curr_size);
+				memset((char *)curr_header + HEADERSIZE, 0xAA, *curr_size);
 			
-			if (*curr_size < real_size) { continue; }
-			else if (*curr_size >= real_size + HEADERSIZE + 8) {
-				struct node *new_header = (struct node *)((char *)curr_header + HEADERSIZE + real_size);
-				new_header->payload_size = *curr_size - real_size - HEADERSIZE;
-				new_header->allocated = 0;
-				*curr_size = real_size;
-			} else {
-				// doesn't change payload_size cuz don't have space to allocate a new chunk.
+				if (*curr_size < real_size) { continue; }
+				else if (*curr_size >= real_size + HEADERSIZE + 8) {
+					struct node *new_header = (struct node *)((char *)curr_header + HEADERSIZE + real_size);
+					new_header->payload_size = (int)(*curr_size - real_size - HEADERSIZE);
+					new_header->allocated = 0;
+					*curr_size = real_size;
+				} else {
+					// doesn't change payload_size cuz don't have space to allocate a new chunk.
+				}
+
+				curr_header->allocated = 1;
+
+				return (void *) ((char *)curr_header + HEADERSIZE);
 			}
-
-			curr_header->allocated = 1;
-
-			return (void *) ((char *)curr_header + HEADERSIZE);
 		}
 	}
 
@@ -123,8 +126,9 @@ void myfree(void *ptr, char *file, int line) {
 		initialize();
 	}
 	
+	// no operations when free(NULL).
     if (ptr == NULL) {
-        return; // Freeing NULL is allowed (no-op)
+        return;
     }
 
     // Check if pointer is within the heap
@@ -135,7 +139,7 @@ void myfree(void *ptr, char *file, int line) {
 
     // Get the header by moving back from the payload
     struct node *header = (struct node *)((char *)ptr - HEADERSIZE);
-	size_t *curr_size = &(header->payload_size);
+	int *curr_size = &(header->payload_size);
 
 	// check whether header is at the start of a chunk (whether ptr is a the start of a payload).
 	for (struct node *curr_header = first_header; ;

@@ -47,34 +47,34 @@
      
      // fill memory with objects
      for (i = 0; i < OBJECTS; i++) {
-         obj[i] = malloc(OBJSIZE);
-         if (obj[i] == NULL) {
-             printf("Unable to allocate object %d\n", i);
-             exit(1);
-         }
+        obj[i] = malloc(OBJSIZE);
+        if (obj[i] == NULL) {
+            printf("Unable to allocate object %d\n", i);
+            exit(1);
+        }
      }
      
-    //  // fill each object with distinct bytes
-    //  for (i = 0; i < OBJECTS; i++) {
-    //      memset(obj[i], i, OBJSIZE);
-    //  }
-     
-    //  // check that all objects contain the correct bytes
-    //  for (i = 0; i < OBJECTS; i++) {
-    //      for (j = 0; j < OBJSIZE; j++) {
-    //          if (obj[i][j] != i) {
-    //              errors++;
-    //              // printf("Object %d byte %d incorrect: %d\n", i, j, obj[i][j]);
-    //          }
-    //      }
-    //  }
+     // fill each object with distinct bytes
+     for (i = 0; i < OBJECTS; i++) {
+         memset(obj[i], i, OBJSIZE);
+     }
+
+     // check that all objects contain the correct bytes
+     for (i = 0; i < OBJECTS; i++) {
+         for (j = 0; j < OBJSIZE; j++) {
+             if (obj[i][j] != i) {
+                 errors++;
+                 printf("Object %d byte %d incorrect: %d\n", i, j, obj[i][j]);
+             }
+         }
+     }
  
-    //  // free all objects
-    //  if (!LEAK) {
-    //      for (i = 0; i < OBJECTS; i++) {
-    //      free(obj[i]);
-    //      }
-    //  }
+     // free all objects
+     if (!LEAK) {
+         for (i = 0; i < OBJECTS; i++) {
+            free(obj[i]);
+         }
+     }
      
      printf("%d incorrect bytes\n", errors);
      
