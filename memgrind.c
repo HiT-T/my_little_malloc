@@ -1,14 +1,3 @@
- /*1. malloc() and immediately free() a 1 - byte object, 120 times.
-  *2. Use malloc() to get 120 1 - byte objects, storing the pointers in an array, then use free() to
-  *deallocate the chunks.
-  *3. Create an array of 120 pointers.Repeatedly make a random choice between(a) allocating a
-  *1 - byte object and adding the pointer to the array and (b)deallocating a previously allocated
-  *object(if any).Once 120 allocations have been performed, deallocate all objects.
-  * The remaining two are for you to design, but should attempt to simulate a program with non-trivial
-  *dynamic memory use. (For example, manipulating a linked list or binary tree.) To avoid running
-  *out of memory, each task should free all heap objects it created.
-  */
-
  #include <stdio.h>
  #include <stdlib.h>
  #include "mymalloc.h"
@@ -95,19 +84,22 @@
  }
  
  int main() {
-     struct timeval start, end;
-     void (*tasks[NUM_TASKS])() = {task1, task2, task3, task4, task5};
+    struct timeval start, end;
+    void (*tasks[NUM_TASKS])() = {task1, task2, task3, task4, task5};
  
-     for (int i = 0; i < NUM_TASKS; i++) {
-         gettimeofday(&start, NULL);
-         for (int j = 0; j < NUM_RUNS; j++) {
-             tasks[i]();
-         }
-         gettimeofday(&end, NULL);
-         double avg_time = (end.tv_sec - start.tv_sec) * 1e6 + (end.tv_usec - start.tv_usec);
-         avg_time /= NUM_RUNS;
-         printf("Task %d average time: %.2f microseconds\n", i+1, avg_time);
-     }
+    double total_time = 0;
+
+    for (int i = 0; i < NUM_RUNS; i++) {
+        gettimeofday(&start, NULL);
+        for (int j = 0; j < NUM_TASKS; j++) {
+            tasks[j]();
+        }
+        gettimeofday(&end, NULL);
+        total_time += (end.tv_sec - start.tv_sec) * 1e6 + (end.tv_usec - start.tv_usec);
+    }
+
+    double avg_time = total_time / NUM_RUNS;
+    printf("Workload average time: %.2f microseconds\n", avg_time);
  
-     return 0;
+    return 0;
  }
